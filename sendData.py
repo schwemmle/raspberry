@@ -1,7 +1,7 @@
 import smbus2
 import bme280
 from datetime import datetime
-
+import serial
 import asyncio
 from azure.iot.device.aio import IoTHubDeviceClient
 from device_provisioning_service import Device
@@ -24,12 +24,30 @@ def read_sensor_data():
     pressure = round(data.pressure, 2)
     humidity = round(data.humidity, 2)
 
+    # get co2 ppm
+    inp = []
+    cmd_zero_sensor = b'\xff\x87\x87\x00\x00\x00\x00\x00\xf2'
+    cmd_span_sensor = b'\xff\x87\x87\x00\x00\x00\x00\x00\xf2'
+    cmd_get_sensor = b'\xff\x01\x86\x00\x00\x00\x00\x00\x79'
+    
+    ser = serial.Serial('/dev/serial0', 9600)	#Open the serial port at 9600 baud
+    ser.flush()
+        
+    ser.write(cmd_get_sensor)
+    inp = ser.read(9)
+    high_level = inp[2]
+    low_level = inp[3]
+    temp_co2  = inp[4] - 40
+
+    conc = high_level*256+low_level
+
     # calculates the real temperature compesating CPU heating
  
     data = {}
     data["temperature"] = temp
     data["pressure"] = pressure
     data["humidity"] = humidity
+    data["co2"] = conc
 
     return data
 
